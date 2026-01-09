@@ -24,18 +24,40 @@ const COMMON_INGREDIENTS = [
   'White Rice', 'White Vinegar', 'Whole Wheat Bread', 'Worcestershire Sauce', 'Zucchini'
 ];
 
-type SortKey = 'name' | 'quantity' | 'expirationDate';
+const CATEGORIES = [
+  'Produce', 'Dairy', 'Meat', 'Pantry', 'Frozen', 'Beverages', 'Spices', 'Bakery', 'Other'
+];
+
+type SortKey = 'name' | 'quantity' | 'expirationDate' | 'category';
 type SortDirection = 'asc' | 'desc';
 
+interface SortRule {
+  key: SortKey;
+  direction: SortDirection;
+}
+
 const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemove }) => {
+  // Form State
   const [name, setName] = useState('');
+  const [category, setCategory] = useState('Pantry');
   const [qty, setQty] = useState('');
   const [expiry, setExpiry] = useState('');
   const [threshold, setThreshold] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [sortBy, setSortBy] = useState<SortKey>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  
+  // Multi-Column Sort State
+  // Default sort: Expiry Ascending, then Name Ascending
+  const [sortRules, setSortRules] = useState<SortRule[]>([
+    { key: 'expirationDate', direction: 'asc' },
+    { key: 'name', direction: 'asc' }
+  ]);
   
   const suggestionRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +88,7 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
     if (!name) return;
     onAdd({ 
       name, 
+      category,
       quantity: qty, 
       expirationDate: expiry, 
       lowStockThreshold: threshold ? parseFloat(threshold) : undefined 
@@ -74,6 +97,7 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
     setQty('');
     setExpiry('');
     setThreshold('');
+    setCategory('Pantry');
     setShowSuggestions(false);
   };
 
@@ -83,33 +107,86 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
     setShowSuggestions(false);
   };
 
+  /**
+   * Toggles multi-column sorting. 
+   * Last clicked column becomes the primary sort (index 0).
+   */
   const toggleSort = (key: SortKey) => {
-    if (sortBy === key) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(key);
-      setSortDirection('asc');
-    }
-  };
+    setSortRules(prev => {
+      const existingIndex = prev.findIndex(r => r.key === key);
+      const newRules = [...prev];
 
-  const sortedPantry = useMemo(() => {
-    const sorted = [...pantry].sort((a, b) => {
-      let valA: any = a[sortBy] || '';
-      let valB: any = b[sortBy] || '';
-
-      if (sortBy === 'quantity') {
-        const numA = parseFloat(valA) || 0;
-        const numB = parseFloat(valB) || 0;
-        if (numA !== numB) return numA - numB;
+      if (existingIndex === 0) {
+        // If already primary, toggle direction
+        newRules[0] = { 
+          ...newRules[0], 
+          direction: newRules[0].direction === 'asc' ? 'desc' : 'asc' 
+        };
+      } else if (existingIndex > 0) {
+        // If in list but not primary, move to primary and default to 'asc'
+        const [removed] = newRules.splice(existingIndex, 1);
+        newRules.unshift({ ...removed, direction: 'asc' });
+      } else {
+        // If not in list, add to primary
+        newRules.unshift({ key, direction: 'asc' });
       }
 
-      if (valA < valB) return -1;
-      if (valA > valB) return 1;
+      // Limit to 3 levels of sorting for performance and clarity
+      return newRules.slice(0, 3);
+    });
+  };
+
+  const filteredAndSortedPantry = useMemo(() => {
+    let result = pantry.filter(item => {
+      // Name Search
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Category Filter
+      const matchesCategory = filterCategory === 'All' || item.category === filterCategory;
+      
+      // Date Range Filter
+      let matchesDateRange = true;
+      if (item.expirationDate) {
+        const itemDate = new Date(item.expirationDate);
+        if (dateFrom) {
+          matchesDateRange = matchesDateRange && itemDate >= new Date(dateFrom);
+        }
+        if (dateTo) {
+          matchesDateRange = matchesDateRange && itemDate <= new Date(dateTo);
+        }
+      } else if (dateFrom || dateTo) {
+        matchesDateRange = false;
+      }
+
+      return matchesSearch && matchesCategory && matchesDateRange;
+    });
+
+    result.sort((a, b) => {
+      for (const rule of sortRules) {
+        let valA: any = (a as any)[rule.key] || '';
+        let valB: any = (b as any)[rule.key] || '';
+
+        // Specific handling for numeric quantity sorting
+        if (rule.key === 'quantity') {
+          valA = parseFloat(valA) || 0;
+          valB = parseFloat(valB) || 0;
+        }
+
+        // Specific handling for dates
+        if (rule.key === 'expirationDate') {
+          valA = valA ? new Date(valA).getTime() : Infinity; // Empty dates go to the bottom
+          valB = valB ? new Date(valB).getTime() : Infinity;
+        }
+
+        if (valA < valB) return rule.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return rule.direction === 'asc' ? 1 : -1;
+        // If equal, continue to next sort rule
+      }
       return 0;
     });
 
-    return sortDirection === 'desc' ? sorted.reverse() : sorted;
-  }, [pantry, sortBy, sortDirection]);
+    return result;
+  }, [pantry, searchQuery, filterCategory, dateFrom, dateTo, sortRules]);
 
   const isLowStock = (item: PantryItem) => {
     if (item.lowStockThreshold === undefined) return false;
@@ -118,17 +195,50 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
   };
 
   const SortIcon = ({ field }: { field: SortKey }) => {
-    if (sortBy !== field) return <span className="text-slate-300 ml-1 opacity-50 group-hover:opacity-100 transition-opacity">↕</span>;
-    return <span className="text-emerald-500 ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>;
+    const ruleIndex = sortRules.findIndex(r => r.key === field);
+    const rule = sortRules[ruleIndex];
+    
+    if (ruleIndex === -1) {
+      return (
+        <span className="text-slate-300 ml-2 opacity-50 group-hover:opacity-100 transition-opacity">
+          ↕
+        </span>
+      );
+    }
+
+    return (
+      <div className="inline-flex items-center ml-2">
+        <span className="text-emerald-500 font-bold">
+          {rule.direction === 'asc' ? '↑' : '↓'}
+        </span>
+        <span className={`ml-1 text-[8px] flex items-center justify-center w-3 h-3 rounded-full bg-emerald-500 text-white font-black leading-none`}>
+          {ruleIndex + 1}
+        </span>
+      </div>
+    );
+  };
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setFilterCategory('All');
+    setDateFrom('');
+    setDateTo('');
+    setSortRules([
+      { key: 'expirationDate', direction: 'asc' },
+      { key: 'name', direction: 'asc' }
+    ]);
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
+      {/* Add New Item Form */}
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
-        <h2 className="text-3xl font-bold text-slate-800 mb-8">Pantry Inventory</h2>
+        <h2 className="text-3xl font-bold text-slate-800 mb-8 flex items-center gap-3">
+          <span className="bg-emerald-100 p-2 rounded-xl text-2xl">➕</span> Add to Inventory
+        </h2>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-12 items-end relative">
-          <div className="md:col-span-1 relative">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4 items-end relative">
+          <div className="md:col-span-2 relative">
             <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Item Name</label>
             <input
               type="text"
@@ -162,22 +272,22 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
             )}
           </div>
           <div>
+            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all shadow-sm text-sm bg-white"
+            >
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
             <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Qty / Unit</label>
             <input
               type="text"
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               placeholder="e.g. 500g"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all shadow-sm text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Min Alert Level</label>
-            <input
-              type="number"
-              value={threshold}
-              onChange={(e) => setThreshold(e.target.value)}
-              placeholder="e.g. 100"
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all shadow-sm text-sm"
             />
           </div>
@@ -197,29 +307,90 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
             Add Item
           </button>
         </form>
+      </div>
 
-        <div className="flex items-center justify-between mb-4 px-2">
-          <div className="flex items-center gap-4">
-            <div className="text-sm font-medium text-slate-500">
-              {pantry.length} items in inventory
-            </div>
-            {pantry.some(isLowStock) && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold animate-pulse">
-                <span>⚠️</span> {pantry.filter(isLowStock).length} items low on stock
-              </div>
-            )}
+      {/* Advanced Filter & Search Area */}
+      <div className="bg-slate-900 rounded-3xl p-8 shadow-xl text-white">
+        <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+          <div>
+            <h3 className="text-2xl font-bold">Pantry Inventory</h3>
+            <p className="text-slate-400 text-sm mt-1">Manage and track your supplies</p>
           </div>
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-            Sort by: 
-            <button onClick={() => toggleSort('name')} className={`hover:text-emerald-600 ${sortBy === 'name' ? 'text-emerald-600' : ''}`}>Name</button>
-            <span>•</span>
-            <button onClick={() => toggleSort('quantity')} className={`hover:text-emerald-600 ${sortBy === 'quantity' ? 'text-emerald-600' : ''}`}>Quantity</button>
-            <span>•</span>
-            <button onClick={() => toggleSort('expirationDate')} className={`hover:text-emerald-600 ${sortBy === 'expirationDate' ? 'text-emerald-600' : ''}`}>Expiry</button>
+          <div className="flex items-center gap-3">
+             <button 
+              onClick={resetFilters}
+              className="text-xs font-bold text-slate-400 hover:text-white transition-colors uppercase tracking-widest"
+             >
+               Reset All
+             </button>
+             <div className="h-4 w-[1px] bg-slate-700 mx-2"></div>
+             <div className="text-sm font-medium text-slate-400">
+              Showing {filteredAndSortedPantry.length} of {pantry.length} items
+            </div>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-100 shadow-inner bg-white">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+          <div className="md:col-span-1">
+            <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-[0.2em]">Search Ingredients</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Find item..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm transition-all"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-[0.2em]">Category</label>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm transition-all text-white"
+            >
+              <option value="All">All Categories</option>
+              {CATEGORIES.map(c => <option key={c} value={c} className="bg-slate-900 text-white">{c}</option>)}
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-[0.2em]">Expiration Date Range</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm transition-all text-white"
+              />
+              <span className="text-slate-500">to</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm transition-all text-white"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Sorting Feedback */}
+        <div className="mt-6 flex flex-wrap gap-2 items-center">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-2">Sort Priority:</span>
+          {sortRules.map((rule, idx) => (
+            <div key={rule.key} className="flex items-center bg-white/5 border border-white/10 px-3 py-1 rounded-full text-[10px] font-bold">
+              <span className="text-emerald-400 mr-2">{idx + 1}.</span>
+              <span className="capitalize">{rule.key.replace(/([A-Z])/g, ' $1')}</span>
+              <span className="ml-2 text-slate-400">{rule.direction === 'asc' ? '↑' : '↓'}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Inventory Table */}
+      <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-200">
+        <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
@@ -231,11 +402,16 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
                 </th>
                 <th 
                   className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest cursor-pointer group hover:bg-slate-100 transition-colors"
+                  onClick={() => toggleSort('category')}
+                >
+                  <div className="flex items-center">Category <SortIcon field="category" /></div>
+                </th>
+                <th 
+                  className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest cursor-pointer group hover:bg-slate-100 transition-colors"
                   onClick={() => toggleSort('quantity')}
                 >
-                  <div className="flex items-center">Current Quantity <SortIcon field="quantity" /></div>
+                  <div className="flex items-center">Quantity <SortIcon field="quantity" /></div>
                 </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Stock Alert</th>
                 <th 
                   className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest cursor-pointer group hover:bg-slate-100 transition-colors"
                   onClick={() => toggleSort('expirationDate')}
@@ -246,15 +422,20 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sortedPantry.length === 0 ? (
+              {filteredAndSortedPantry.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-16 text-center text-slate-400">
                     <div className="text-4xl mb-3">🧺</div>
-                    <p className="italic font-medium">Your pantry is currently empty.</p>
+                    <p className="italic font-medium">No items match your current filters.</p>
+                    {(searchQuery || filterCategory !== 'All' || dateFrom || dateTo) && (
+                      <button onClick={resetFilters} className="mt-4 text-emerald-600 font-bold text-sm hover:underline">
+                        Clear all filters
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
-                sortedPantry.map((item) => (
+                filteredAndSortedPantry.map((item) => (
                   <tr key={item.id} className={`group transition-colors ${isLowStock(item) ? 'bg-amber-50/20' : 'hover:bg-emerald-50/30'}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -263,26 +444,28 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
                         }`}>
                           {item.name.charAt(0).toUpperCase()}
                         </div>
-                        <span className={`font-semibold ${isLowStock(item) ? 'text-amber-900' : 'text-slate-800'}`}>
-                          {item.name}
-                        </span>
-                        {isLowStock(item) && (
-                          <span className="bg-amber-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shadow-sm animate-pulse">
-                            Low Stock
+                        <div>
+                          <span className={`font-semibold block ${isLowStock(item) ? 'text-amber-900' : 'text-slate-800'}`}>
+                            {item.name}
                           </span>
-                        )}
+                          {isLowStock(item) && (
+                            <span className="text-[10px] text-amber-600 font-bold uppercase tracking-tight flex items-center gap-1">
+                              ⚠️ Low Stock
+                            </span>
+                          )}
+                        </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md uppercase tracking-widest">
+                        {item.category || 'Pantry'}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                         isLowStock(item) ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
                       }`}>
                         {item.quantity || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs font-bold text-slate-400">
-                        {item.lowStockThreshold !== undefined ? `Alert at ${item.lowStockThreshold}` : 'None'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -309,24 +492,14 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-emerald-900 text-white p-8 rounded-3xl shadow-xl flex items-center gap-6">
-          <div className="text-5xl">💡</div>
-          <div>
-            <h4 className="text-xl font-bold mb-1 text-emerald-100">Smart Monitoring</h4>
-            <p className="text-emerald-200/80 text-sm leading-relaxed">
-              Set "Min Alert Levels" to have the Genie automatically flag ingredients that need restocking. Perfect for staples like eggs, flour, or milk.
-            </p>
-          </div>
-        </div>
-        <div className="bg-amber-500 text-white p-8 rounded-3xl shadow-xl flex items-center gap-6">
-          <div className="text-5xl">⚠️</div>
-          <div>
-            <h4 className="text-xl font-bold mb-1">Waste Prevention</h4>
-            <p className="text-amber-100 text-sm leading-relaxed">
-              Red dates indicate expired items. Check these first to keep your kitchen healthy and organized.
-            </p>
-          </div>
+      <div className="bg-emerald-900 text-white p-8 rounded-3xl shadow-xl flex items-center gap-6">
+        <div className="text-5xl">⚡</div>
+        <div>
+          <h4 className="text-xl font-bold mb-1 text-emerald-100">Multi-Column Precision</h4>
+          <p className="text-emerald-200/80 text-sm leading-relaxed">
+            Click table headers sequentially to stack sorting priorities. 
+            For example, click <strong>Expiry Date</strong> then <strong>Name</strong> to see items expiring soonest, ordered alphabetically.
+          </p>
         </div>
       </div>
     </div>

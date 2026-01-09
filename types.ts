@@ -26,6 +26,7 @@ export interface ShoppingItem {
 export interface PantryItem {
   id: string;
   name: string;
+  category?: string;
   quantity: string;
   expirationDate: string;
   lowStockThreshold?: number;
