@@ -54,23 +54,31 @@ export async function suggestRecipes(
 ): Promise<Recipe[]> {
   const ai = getAI();
   const pantryNames = pantryItems.map(p => p.name).join(', ');
+  
   const prompt = `
-    Context: Professional Chef AI Assistant
+    Context: Professional Executive Chef AI Assistant
     
-    User Profile:
-    - Skill Level: ${profile.skillLevel}
-    - Cuisines: ${profile.preferredCuisines.join(', ') || 'Global'}
-    - Avoid: ${profile.dislikes.join(', ') || 'None'}
+    Goal: Generate highly personalized recipes that strictly follow the user's profile.
     
-    Inventory:
-    - Fridge (High Priority): ${fridgeIngredients.join(', ')}
-    - Pantry (Secondary): ${pantryNames || 'Empty'}
+    User Profile Details:
+    - Skill Level: ${profile.skillLevel} (Calibrate complexity and technical terms to this level)
+    - Preferred Cuisines: ${profile.preferredCuisines.join(', ') || 'Global/Any'} (PRIORITIZE these flavors)
+    - Strictly Avoid (Allergies/Dislikes): ${profile.dislikes.join(', ') || 'None'} (CRITICAL: Never include these)
     
-    Requirements: ${dietary.join(', ') || 'None'}
+    Current Inventory:
+    - Fridge (Primary Source): ${fridgeIngredients.join(', ')}
+    - Pantry (Available Staples): ${pantryNames || 'Empty'}
+    
+    Additional Dietary Constraints: ${dietary.join(', ') || 'None'}
 
-    Generate 3 distinct recipes. Prioritize items in the fridge. 
-    Ensure steps includes precise timing (e.g., "Saute for 5 minutes").
-    Avoid any ingredients in the "Avoid" list.
+    Task:
+    Generate 3 distinct, high-quality recipes. 
+    1. One recipe should be a "Perfect Match" for a preferred cuisine.
+    2. One recipe should be "Creative Use" of fridge items.
+    3. One recipe should be a "Quick & Easy" option for their skill level.
+    
+    Ensure every ingredient listed as "missing" is actually necessary for the dish but not in the inventory.
+    Avoid any ingredients in the "Strictly Avoid" list even in minor quantities.
   `;
 
   const response = await ai.models.generateContent({

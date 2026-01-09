@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import FridgeScanner from './components/FridgeScanner';
 import RecipeList from './components/RecipeList';
@@ -60,6 +60,22 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  /**
+   * Manually re-fetches recipes based on latest profile and dietary filters.
+   */
+  const handleRefreshRecipes = useCallback(async () => {
+    if (scannedIngredients.length === 0) return;
+    setIsLoading(true);
+    try {
+      const suggested = await suggestRecipes(scannedIngredients, pantry, profile, dietaryFilters);
+      setRecipes(suggested);
+    } catch (e) {
+      console.error("Recipe refresh failure:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [scannedIngredients, pantry, profile, dietaryFilters]);
 
   const addToShoppingList = (items: string[]) => {
     setShoppingList(prev => {
@@ -129,7 +145,18 @@ const App: React.FC = () => {
                 <h2 className="text-3xl font-bold text-slate-800">Tailored Recipes</h2>
                 <p className="text-slate-500">Based on Fridge, Pantry, and your {profile.skillLevel} level expertise.</p>
               </div>
-              {isLoading && <div className="animate-spin h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full" aria-label="Loading suggestions"></div>}
+              <div className="flex items-center gap-4">
+                {scannedIngredients.length > 0 && (
+                  <button 
+                    onClick={handleRefreshRecipes}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm border border-emerald-100 hover:bg-emerald-100 transition-all disabled:opacity-50"
+                  >
+                    <span>✨</span> Refine with Latest Profile
+                  </button>
+                )}
+                {isLoading && <div className="animate-spin h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full" aria-label="Loading suggestions"></div>}
+              </div>
             </div>
             
             {recipes.length > 0 ? (

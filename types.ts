@@ -28,6 +28,7 @@ export interface PantryItem {
   name: string;
   quantity: string;
   expirationDate: string;
+  lowStockThreshold?: number;
 }
 
 export interface UserProfile {
