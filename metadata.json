@@ -1,0 +1,8 @@
+{
+  "name": "CulinaryGenie: AI Smart Fridge & Assistant",
+  "description": "A high-end culinary assistant that uses vision to scan your fridge, suggests recipes, offers a hands-free voice mode, and helps you shop or find nearby markets using advanced Gemini models.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
