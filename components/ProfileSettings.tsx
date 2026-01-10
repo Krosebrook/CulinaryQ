@@ -10,6 +10,7 @@ interface ProfileSettingsProps {
 const ProfileSettings: React.FC<ProfileSettingsProps> = ({ profile, onUpdate }) => {
   const [newDislike, setNewDislike] = useState('');
   const [newCuisine, setNewCuisine] = useState('');
+  const [newMethod, setNewMethod] = useState('');
 
   const addDislike = () => {
     if (newDislike && !profile.dislikes.includes(newDislike)) {
@@ -33,8 +34,19 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ profile, onUpdate }) 
     onUpdate({ ...profile, preferredCuisines: profile.preferredCuisines.filter(c => c !== item) });
   };
 
+  const addMethod = () => {
+    if (newMethod && !profile.cookingMethods.includes(newMethod)) {
+      onUpdate({ ...profile, cookingMethods: [...profile.cookingMethods, newMethod] });
+      setNewMethod('');
+    }
+  };
+
+  const removeMethod = (item: string) => {
+    onUpdate({ ...profile, cookingMethods: profile.cookingMethods.filter(m => m !== item) });
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
         <h2 className="text-3xl font-bold text-slate-800 mb-8">Culinary Profile</h2>
 
@@ -58,6 +70,9 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ profile, onUpdate }) 
                 </button>
               ))}
             </div>
+            <p className="text-xs text-slate-400 mt-2 ml-1">
+              Recipes will be adjusted to match your selected complexity level.
+            </p>
           </section>
 
           <section>
@@ -83,6 +98,34 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ profile, onUpdate }) 
               {profile.preferredCuisines.map((c) => (
                 <span key={c} className="bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-semibold flex items-center gap-2">
                   {c} <button onClick={() => removeCuisine(c)} className="hover:text-emerald-900">✕</button>
+                </span>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+              🔥 Cooking Methods
+            </h3>
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={newMethod}
+                onChange={(e) => setNewMethod(e.target.value)}
+                placeholder="e.g. Baking, Grilling, Sous Vide"
+                className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+              />
+              <button
+                onClick={addMethod}
+                className="bg-slate-900 text-white px-6 rounded-xl font-bold hover:bg-slate-800 transition-all"
+              >
+                Add
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {profile.cookingMethods.map((m) => (
+                <span key={m} className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-sm font-semibold flex items-center gap-2">
+                  {m} <button onClick={() => removeMethod(m)} className="hover:text-blue-900">✕</button>
                 </span>
               ))}
             </div>

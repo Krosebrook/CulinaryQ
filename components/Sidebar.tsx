@@ -14,6 +14,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setTab, dietaryFilters, t
     { label: 'Fridge Hub', icon: '❄️', value: 'HOME' },
     { label: 'Pantry', icon: '🧺', value: 'PANTRY' },
     { label: 'Recipes', icon: '🍳', value: 'RECIPE_LIST' },
+    { label: 'My Cookbook', icon: '📖', value: 'COOKBOOK' },
     { label: 'Shopping', icon: '🛒', value: 'SHOPPING_LIST' },
     { label: 'Magic Studio', icon: '🪄', value: 'IMAGE_EDITOR' },
     { label: 'Profile', icon: '👤', value: 'PROFILE' },

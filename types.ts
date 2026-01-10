@@ -35,13 +35,14 @@ export interface PantryItem {
 export interface UserProfile {
   dislikes: string[];
   preferredCuisines: string[];
+  cookingMethods: string[];
   skillLevel: 'Beginner' | 'Intermediate' | 'Expert';
 }
 
 /**
  * Valid states for the main application navigation.
  */
-export type AppState = 'HOME' | 'SCANNING' | 'RECIPE_LIST' | 'COOKING_MODE' | 'SHOPPING_LIST' | 'IMAGE_EDITOR' | 'PANTRY' | 'PROFILE' | 'DOCS';
+export type AppState = 'HOME' | 'SCANNING' | 'RECIPE_LIST' | 'COOKBOOK' | 'COOKING_MODE' | 'SHOPPING_LIST' | 'IMAGE_EDITOR' | 'PANTRY' | 'PROFILE' | 'DOCS';
 
 export interface GroundingSource {
   title: string;

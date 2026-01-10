@@ -61,11 +61,13 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes, onSelect }) => {
       {/* Grid Layout */}
       {filteredRecipes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredRecipes.map((recipe) => (
+          {filteredRecipes.map((recipe) => {
+            const missingCount = recipe.ingredients.filter(i => i.isMissing).length;
+            return (
             <div
               key={recipe.id}
               onClick={() => onSelect(recipe)}
-              className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-200 cursor-pointer group hover:shadow-2xl transition-all hover:-translate-y-2"
+              className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-200 cursor-pointer group hover:shadow-2xl transition-all hover:-translate-y-2 relative"
             >
               <div className="aspect-[4/3] relative overflow-hidden bg-slate-100">
                 <img
@@ -86,6 +88,11 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes, onSelect }) => {
                     </span>
                   ))}
                 </div>
+                {missingCount > 0 && (
+                  <div className="absolute bottom-4 right-4 bg-red-500 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg animate-pulse">
+                    Requires Shopping
+                  </div>
+                )}
               </div>
               <div className="p-6">
                 <div className="flex justify-between items-start mb-2">
@@ -103,13 +110,13 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes, onSelect }) => {
                   <div className="flex items-center gap-2">
                     <span className="text-lg">🔥</span> {recipe.calories} kcal
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🍱</span> {recipe.ingredients.length} items
+                  <div className={`flex items-center gap-2 ${missingCount > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                    <span className="text-lg">{missingCount > 0 ? '🛒' : '🍱'}</span> {missingCount > 0 ? `${missingCount} missing` : 'Ready to Cook'}
                   </div>
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       ) : (
         <div className="py-24 text-center bg-white rounded-3xl border border-dashed border-slate-200">

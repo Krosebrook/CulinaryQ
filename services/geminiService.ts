@@ -58,11 +58,12 @@ export async function suggestRecipes(
   const prompt = `
     Context: Professional Executive Chef AI Assistant
     
-    Goal: Generate highly personalized recipes that strictly follow the user's profile.
+    Goal: Generate highly personalized recipes that strictly follow the user's profile and inventory.
     
     User Profile Details:
     - Skill Level: ${profile.skillLevel} (Calibrate complexity and technical terms to this level)
     - Preferred Cuisines: ${profile.preferredCuisines.join(', ') || 'Global/Any'} (PRIORITIZE these flavors)
+    - Preferred Cooking Methods: ${profile.cookingMethods.join(', ') || 'Any'} (Favor these techniques)
     - Strictly Avoid (Allergies/Dislikes): ${profile.dislikes.join(', ') || 'None'} (CRITICAL: Never include these)
     
     Current Inventory:
@@ -73,7 +74,7 @@ export async function suggestRecipes(
 
     Task:
     Generate 3 distinct, high-quality recipes. 
-    1. One recipe should be a "Perfect Match" for a preferred cuisine.
+    1. One recipe should be a "Perfect Match" for a preferred cuisine or cooking method.
     2. One recipe should be "Creative Use" of fridge items.
     3. One recipe should be a "Quick & Easy" option for their skill level.
     
