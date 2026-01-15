@@ -531,7 +531,8 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
               <input 
                 type="text" 
                 value={searchQuery} 
-                onChange={(e) => setSearchQuery(e.target.value)} 
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search ingredients"
                 placeholder="Name (Fuzzy search enabled)" 
                 className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm transition-all text-white placeholder-slate-400" 
               />
@@ -577,9 +578,23 @@ const PantryInventory: React.FC<PantryInventoryProps> = ({ pantry, onAdd, onRemo
           <div className="md:col-span-2">
             <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-[0.2em]">Expiration Date Range</label>
             <div className="flex items-center gap-3">
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm transition-all text-white" />
+              <input 
+                type="date" 
+                value={dateFrom} 
+                onChange={(e) => setDateFrom(e.target.value)} 
+                aria-label="Filter by start date"
+                style={{ colorScheme: 'dark' }}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm transition-all text-white placeholder-slate-400" 
+              />
               <span className="text-slate-500">to</span>
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm transition-all text-white" />
+              <input 
+                type="date" 
+                value={dateTo} 
+                onChange={(e) => setDateTo(e.target.value)} 
+                aria-label="Filter by end date"
+                style={{ colorScheme: 'dark' }}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm transition-all text-white placeholder-slate-400" 
+              />
             </div>
           </div>
         </div>
